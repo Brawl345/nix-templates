@@ -1,5 +1,6 @@
 {
   description = "Poetry Project";
+
   inputs = {
     nixpkgs = {
       url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -16,6 +17,20 @@
           "aarch64-darwin"
         ]
           (system: function nixpkgs.legacyPackages.${system});
+
+      poetry-overides = {
+        somepackage = [ "setuptools" ];
+      };
+
+      p2n-overrides = (pkgs: pkgs.poetry2nix.defaultPoetryOverrides.extend (self: super:
+        builtins.mapAttrs
+          (package: build-requirements:
+            (builtins.getAttr package super).overridePythonAttrs (old: {
+              buildInputs = (old.buildInputs or [ ]) ++ (builtins.map (pkg: if builtins.isString pkg then builtins.getAttr pkg super else pkg) build-requirements);
+            })
+          )
+          poetry-overides
+      ));
     in
     {
       devShells = forAllSystems
@@ -26,12 +41,30 @@
                 {
                   projectDir = self;
                   preferWheels = true;
+                  overrides = p2n-overrides pkgs;
                 })
-              pkgs.poetry
             ];
             shellHook = ''
             '';
           };
         });
+
+      packages = forAllSystems
+        (pkgs: {
+          default = pkgs.poetry2nix.mkPoetryApplication
+            {
+              projectDir = self;
+              overrides = p2n-overrides pkgs;
+              preferWheels = true;
+              doCheck = false;
+
+              meta = with pkgs.lib; {
+                description = "";
+                homepage = "";
+                platforms = platforms.all;
+              };
+            };
+        });
+
     };
 }
