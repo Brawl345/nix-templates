@@ -18,18 +18,18 @@
         ]
           (system: function nixpkgs.legacyPackages.${system});
 
-      poetry-overides = {
+      poetry-overrides = {
         somepackage = [ "setuptools" ];
       };
 
-      p2n-overrides = (pkgs: pkgs.poetry2nix.defaultPoetryOverrides.extend (self: super:
+      poetry2nix-overrides = (pkgs: pkgs.poetry2nix.defaultPoetryOverrides.extend (self: super:
         builtins.mapAttrs
           (package: build-requirements:
             (builtins.getAttr package super).overridePythonAttrs (old: {
               buildInputs = (old.buildInputs or [ ]) ++ (builtins.map (pkg: if builtins.isString pkg then builtins.getAttr pkg super else pkg) build-requirements);
             })
           )
-          poetry-overides
+          poetry-overrides
       ));
     in
     {
@@ -41,7 +41,7 @@
                 {
                   projectDir = self;
                   preferWheels = true;
-                  overrides = p2n-overrides pkgs;
+                  overrides = poetry2nix-overrides pkgs;
                 })
             ];
             shellHook = ''
@@ -54,7 +54,7 @@
           default = pkgs.poetry2nix.mkPoetryApplication
             {
               projectDir = self;
-              overrides = p2n-overrides pkgs;
+              overrides = poetry2nix-overrides pkgs;
               preferWheels = true;
               doCheck = false;
 
