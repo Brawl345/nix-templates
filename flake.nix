@@ -11,6 +11,10 @@
         path = ./poetry;
         description = "A Poetry project";
       };
+      python = {
+        path = ./python;
+        description = "A Python project";
+      };
     };
 
     defaultTemplate = self.templates.simple;
