@@ -5,9 +5,13 @@
     nixpkgs = {
       url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     };
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, poetry2nix }:
     let
       forAllSystems = function:
         nixpkgs.lib.genAttrs [
@@ -22,7 +26,7 @@
         somepackage = [ "setuptools" ];
       };
 
-      poetry2nix-overrides = (pkgs: pkgs.poetry2nix.defaultPoetryOverrides.extend (self: super:
+      poetry2nix-overrides = (defaultPoetryOverrides: pkgs: defaultPoetryOverrides.extend (self: super:
         builtins.mapAttrs
           (package: build-requirements:
             (builtins.getAttr package super).overridePythonAttrs (old: {
@@ -34,37 +38,45 @@
     in
     {
       devShells = forAllSystems
-        (pkgs: {
-          default = pkgs.mkShellNoCC {
-            packages = [
-              (pkgs.poetry2nix.mkPoetryEnv
-                {
-                  projectDir = self;
-                  preferWheels = true;
-                  overrides = poetry2nix-overrides pkgs;
-                })
-            ];
-            shellHook = ''
+        (pkgs:
+          let
+            inherit (poetry2nix.lib.mkPoetry2Nix { inherit pkgs; }) mkPoetryEnv defaultPoetryOverrides;
+          in
+          {
+            default = pkgs.mkShellNoCC {
+              packages = [
+                (mkPoetryEnv
+                  {
+                    projectDir = self;
+                    preferWheels = true;
+                    overrides = poetry2nix-overrides defaultPoetryOverrides pkgs;
+                  })
+              ];
+              shellHook = ''
             '';
-          };
-        });
+            };
+          });
 
       packages = forAllSystems
-        (pkgs: {
-          default = pkgs.poetry2nix.mkPoetryApplication
-            {
-              projectDir = self;
-              overrides = poetry2nix-overrides pkgs;
-              preferWheels = true;
-              doCheck = false;
+        (pkgs:
+          let
+            inherit (poetry2nix.lib.mkPoetry2Nix { inherit pkgs; }) mkPoetryApplication defaultPoetryOverrides;
+          in
+          {
+            default = mkPoetryApplication
+              {
+                projectDir = self;
+                overrides = poetry2nix-overrides defaultPoetryOverrides pkgs;
+                preferWheels = true;
+                doCheck = false;
 
-              meta = with pkgs.lib; {
-                description = "";
-                homepage = "";
-                platforms = platforms.all;
+                meta = with pkgs.lib; {
+                  description = "";
+                  homepage = "";
+                  platforms = platforms.all;
+                };
               };
-            };
-        });
+          });
 
     };
 }
